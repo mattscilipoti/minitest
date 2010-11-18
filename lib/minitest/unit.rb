@@ -1,4 +1,5 @@
 require 'optparse'
+require 'progressbar'
 
 ##
 # Minimal (mostly drop-in) replacement for test-unit.
@@ -519,6 +520,8 @@ module MiniTest
 
     @@installed_at_exit ||= false
     @@out = $stdout
+    COLORS = { :green =>  "\e[32m", :yellow => "\e[33m", :red => "\e[31m", :white => "\e[37m" }
+    @@state = nil
 
     ##
     # A simple hook allowing you to run a block of code after the
@@ -585,7 +588,44 @@ module MiniTest
     end
 
     def print *a # :nodoc:
-      output.print(*a)
+      case a
+      when ["."] then
+        # do nothing
+      when ["E"] then
+        current_state = "error"
+        @@state = :red
+      when ["F"] then
+        current_state = "fail"
+        @@state = :red
+      when ["S"] then
+        current_state = "skip"
+        @@state ||= :yellow
+      else
+        # nothing
+      end
+      if report = @report.pop
+        @@report_count += 1
+        self.send("print_#{current_state}", report)
+      end
+      output.print COLORS[state]
+      progress_bar.inc
+      output.print COLORS[:white]
+    end
+    
+    def state
+      @@state || :green
+    end
+
+    def progress_bar
+      self.class.progress_bar
+    end
+
+    def self.progress_bar
+      @@progress_bar ||= ProgressBar.new("Tests")
+    end
+
+    def self.progress_bar=(bar)
+      @@progress_bar = bar
     end
 
     def _run_anything type
@@ -626,17 +666,24 @@ module MiniTest
     end
 
     def _run_suites suites, type
+      filter = options[:filter] || '/./'
+      filter = Regexp.new $1 if filter =~ /\/(.*)\//
+
+      self.class.progress_bar = ProgressBar.new(type.to_s.capitalize, suites.inject(0) { |i, suite| i += suite.send("#{type}_methods").grep(filter).size })
       suites.map { |suite| _run_suite suite, type }
     end
 
-    def _run_suite suite, type
+    def _run_suite(suite, type)
+      @@report_count = 0
       header = "#{type}_suite_header"
       puts send(header, suite) if respond_to? header
 
       filter = options[:filter] || '/./'
       filter = Regexp.new $1 if filter =~ /\/(.*)\//
 
-      assertions = suite.send("#{type}_methods").grep(filter).map { |method|
+      methods = suite.send("#{type}_methods").grep(filter)
+
+      assertions = methods.map { |method|
         inst = suite.new method
         inst._assertions = 0
 
@@ -764,6 +811,31 @@ module MiniTest
     def status io = self.output
       format = "%d tests, %d assertions, %d failures, %d errors, %d skips"
       io.puts format % [test_count, assertion_count, failures, errors, skips]
+    end
+    
+    private
+
+    def print_skip(report)
+      output.print COLORS[:yellow]
+      print_report(report)
+    end
+
+    def print_fail(report)
+      output.print COLORS[:red]
+      print_report(report)
+    end
+
+    def print_error(report)
+      output.print COLORS[:red]
+      print_report(report)
+    end
+
+    def print_report(report)
+      output.print "\e[K"
+      output.puts
+      output.puts "\n%3d) %s" % [@@report_count, report]
+      puts
+      output.flush
     end
 
     ##
