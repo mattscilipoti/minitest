@@ -4,7 +4,7 @@ module MiniTest
     
     class RunAnythingEvent < BaseEvent
       
-      def initialize()
+      def initialize(output, type)
         super
       end
       

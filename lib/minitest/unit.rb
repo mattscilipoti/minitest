@@ -177,10 +177,10 @@ module MiniTest
     end
 
     def _run_anything type
-      raise_event(:run_anything_start, RunAnythingEvent.new)
       suites = TestCase.send "#{type}_suites"
       return if suites.empty?
-
+      event = RunAnythingEvent.new(output, type)
+      raise_event(:run_anything_start, event)
       start = Time.now
 
       puts
@@ -212,21 +212,23 @@ module MiniTest
       puts
 
       status
-      raise_event(:run_anything_finish, RunAnythingEvent.new)
+      raise_event(:run_anything_finish, event.complete!)
     end
 
     def _run_suites suites, type
-      raise_event(:run_test_suites_start, RunTestSuitesEvent.new)
+      event = RunTestSuitesEvent.new(output, suites, type)
+      raise_event(:run_test_suites_start, event)
       filter = options[:filter] || '/./'
       filter = Regexp.new $1 if filter =~ /\/(.*)\//
 
       self.class.progress_bar = ProgressBar.new(type.to_s.capitalize, suites.inject(0) { |i, suite| i += suite.send("#{type}_methods").grep(filter).size })
       suites.map { |suite| _run_suite suite, type }
-      raise_event(:run_test_suites_finish, RunTestSuitesEvent.new)
+      raise_event(:run_test_suites_finish, event.complete!)
     end
 
     def _run_suite(suite, type)
-      raise_event(:run_test_suite_start, RunTestSuiteEvent.new)
+      suite_event = RunTestSuiteEvent.new(output, suite, type)
+      raise_event(:run_test_suite_start, suite_event)
       @@report_count = 0
       header = "#{type}_suite_header"
       puts send(header, suite) if respond_to? header
@@ -237,9 +239,10 @@ module MiniTest
       methods = suite.send("#{type}_methods").grep(filter)
 
       assertions = methods.map { |method|
-        raise_event(:run_test_start, RunTestEvent.new)
         inst = suite.new method
         inst._assertions = 0
+        run_event = RunTestEvent.new(output, inst)
+        raise_event(:run_test_start, run_event)
 
         start_time = Time.now
         result = inst.run self
@@ -249,11 +252,11 @@ module MiniTest
         print result
         puts if @verbose
         
-        raise_event(:run_test_finish, RunTestEvent.new)
+        raise_event(:run_test_finish, run_event.complete!)
         inst._assertions
       }
       
-      raise_event(:run_test_suite_finish, RunTestSuiteEvent.new)
+      raise_event(:run_test_suite_finish, suite_event.complete!)
       return assertions.size, assertions.inject(0) { |sum, n| sum + n }
     end
 
