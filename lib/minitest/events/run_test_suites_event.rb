@@ -5,7 +5,7 @@ module MiniTest
     class RunTestSuitesEvent < BaseEvent
       
       def initialize(output, suites, type)
-        super
+        super()
       end
       
     end

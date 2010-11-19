@@ -1,6 +1,6 @@
 module MiniTest
   
-  class RunAnythingFinishHandler
+  class RunTestStartHandler
     
     def initialize(event)
       

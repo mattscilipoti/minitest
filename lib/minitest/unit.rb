@@ -1,3 +1,4 @@
+require 'ruby-debug'
 require 'optparse'
 require 'minitest/events'
 require 'minitest/assertions'
@@ -7,7 +8,10 @@ require 'minitest/events/base_event'
 require 'minitest/events/run_anything_event'
 require 'minitest/events/run_test_event'
 require 'minitest/events/run_test_suite_event'
+require 'minitest/events/run_test_suites_event'
 require 'progressbar'
+require 'minitest/plugin'
+require 'minitest/plugins/reporting/reporting'
 ##
 # Minimal (mostly drop-in) replacement for test-unit.
 #
@@ -68,8 +72,6 @@ module MiniTest
 
     @@installed_at_exit ||= false
     @@out = $stdout
-    COLORS = { :green =>  "\e[32m", :yellow => "\e[33m", :red => "\e[31m", :white => "\e[37m" }
-    @@state = nil
 
     ##
     # A simple hook allowing you to run a block of code after the
@@ -136,82 +138,31 @@ module MiniTest
     end
 
     def print *a # :nodoc:
-      case a
-      when ["."] then
-        # do nothing
-      when ["E"] then
-        current_state = "error"
-        @@state = :red
-      when ["F"] then
-        current_state = "fail"
-        @@state = :red
-      when ["S"] then
-        current_state = "skip"
-        @@state ||= :yellow
-      else
-        # nothing
-      end
-      if report = @report.pop
-        @@report_count += 1
-        self.send("print_#{current_state}", report)
-      end
-      output.print COLORS[state]
-      progress_bar.inc
-      output.print COLORS[:white]
-    end
-    
-    def state
-      @@state || :green
-    end
-
-    def progress_bar
-      self.class.progress_bar
-    end
-
-    def self.progress_bar
-      @@progress_bar ||= ProgressBar.new("Tests")
-    end
-
-    def self.progress_bar=(bar)
-      @@progress_bar = bar
+      output.print(*a)
     end
 
     def _run_anything type
       suites = TestCase.send "#{type}_suites"
       return if suites.empty?
       event = RunAnythingEvent.new(output, type)
+      
       raise_event(:run_anything_start, event)
-      start = Time.now
 
-      puts
-      puts "# Running #{type}s:"
-      puts
-
-      @test_count, @assertion_count = 0, 0
+      event.test_count, event.assertion_count = 0, 0
       sync = output.respond_to? :"sync=" # stupid emacs
       old_sync, output.sync = output.sync, true if sync
 
       results = _run_suites suites, type
 
-      @test_count      = results.inject(0) { |sum, (tc, ac)| sum + tc }
-      @assertion_count = results.inject(0) { |sum, (tc, ac)| sum + ac }
-
+      @test_count = event.test_count = results.inject(0) { |sum, (tc, ac)| sum + tc }
+      @assertion_count = event.assertion_count = results.inject(0) { |sum, (tc, ac)| sum + ac }
+      event.report = report
+      event.failures = failures
+      event.errors = errors
+      event.skips = skips
+      
       output.sync = old_sync if sync
 
-      t = Time.now - start
-
-      puts
-      puts
-      puts "Finished #{type}s in %.6fs, %.4f tests/s, %.4f assertions/s." %
-        [t, test_count / t, assertion_count / t]
-
-      report.each_with_index do |msg, i|
-        puts "\n%3d) %s" % [i + 1, msg]
-      end
-
-      puts
-
-      status
       raise_event(:run_anything_finish, event.complete!)
     end
 
@@ -222,14 +173,15 @@ module MiniTest
       filter = Regexp.new $1 if filter =~ /\/(.*)\//
 
       self.class.progress_bar = ProgressBar.new(type.to_s.capitalize, suites.inject(0) { |i, suite| i += suite.send("#{type}_methods").grep(filter).size })
-      suites.map { |suite| _run_suite suite, type }
+      results = suites.map { |suite| _run_suite suite, type }
       raise_event(:run_test_suites_finish, event.complete!)
+      results
     end
 
     def _run_suite(suite, type)
       suite_event = RunTestSuiteEvent.new(output, suite, type)
       raise_event(:run_test_suite_start, suite_event)
-      @@report_count = 0
+
       header = "#{type}_suite_header"
       puts send(header, suite) if respond_to? header
 
@@ -371,31 +323,6 @@ module MiniTest
       format = "%d tests, %d assertions, %d failures, %d errors, %d skips"
       io.puts format % [test_count, assertion_count, failures, errors, skips]
     end
-    
-    private
-
-    def print_skip(report)
-      output.print COLORS[:yellow]
-      print_report(report)
-    end
-
-    def print_fail(report)
-      output.print COLORS[:red]
-      print_report(report)
-    end
-
-    def print_error(report)
-      output.print COLORS[:red]
-      print_report(report)
-    end
-
-    def print_report(report)
-      output.print "\e[K"
-      output.puts
-      output.puts "\n%3d) %s" % [@@report_count, report]
-      puts
-      output.flush
-    end
 
   end # class Unit
 end # module MiniTest
@@ -412,3 +339,5 @@ if $DEBUG then
     end
   end
 end
+
+MiniTest::Reporting.enable!

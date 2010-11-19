@@ -39,23 +39,16 @@ module MiniTest
         class_variable_defined?(:@@events) ? class_variable_get(:@@events) : class_variable_set(:@@events, {})
       end
 
-      def register_event_handler(name, klass = nil, &block)
-        if klass && block_given?
-          raise "#{self.class}.register_event_handler expects a class OR a block, not both"
-        elsif klass.nil? && !block_given?
-          raise "#{self.class}.register_event_handler expects a class or a block"
+      def register_event_handler(name, klass)
+        unless klass.is_a? Class
+          raise "#{klass} is not a supported event handler; expected a class or block"
         end
-
-        if klass
-          unless klass.is_a? Class
-            raise "#{klass} is not a supported event handler; expected a class or block"
-          end
-          events[name.to_s] ||= []
-          events[name.to_s] << klass
-        elsif block_given?
-          events[name.to_s] ||= []
-          events[name.to_s] << block
-        end
+        events[name.to_s] ||= []
+        events[name.to_s] << klass
+      end
+      
+      def unregister_event_handler(name, klass)
+        events.delete_if { |k,v| k == name.to_s && v == klass }
       end
 
     end
