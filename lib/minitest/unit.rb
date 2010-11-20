@@ -1,17 +1,15 @@
-require 'ruby-debug'
 require 'optparse'
+require 'pathname'
+require 'ruby-debug'
+Dir[Pathname(__FILE__).dirname + "modules/**/*.rb"].each { |file| require file }
 require 'minitest/events'
 require 'minitest/assertions'
 require 'minitest/test_case'
-require 'minitest/events'
-require 'minitest/events/base_event'
-require 'minitest/events/run_anything_event'
-require 'minitest/events/run_test_event'
-require 'minitest/events/run_test_suite_event'
-require 'minitest/events/run_test_suites_event'
 require 'progressbar'
 require 'minitest/plugin'
 require 'minitest/plugins/reporting/reporting'
+require 'minitest/plugins/instafail/instafail'
+
 ##
 # Minimal (mostly drop-in) replacement for test-unit.
 #
@@ -144,7 +142,7 @@ module MiniTest
     def _run_anything type
       suites = TestCase.send "#{type}_suites"
       return if suites.empty?
-      event = RunAnythingEvent.new(output, type)
+      event = RunAnythingEvent.new(self, type)
       
       raise_event(:run_anything_start, event)
 
@@ -156,10 +154,7 @@ module MiniTest
 
       @test_count = event.test_count = results.inject(0) { |sum, (tc, ac)| sum + tc }
       @assertion_count = event.assertion_count = results.inject(0) { |sum, (tc, ac)| sum + ac }
-      event.report = report
-      event.failures = failures
-      event.errors = errors
-      event.skips = skips
+      event.report, event.failures, event.errors, event.skips = report, failures, errors, skips
       
       output.sync = old_sync if sync
 
@@ -167,23 +162,19 @@ module MiniTest
     end
 
     def _run_suites suites, type
-      event = RunTestSuitesEvent.new(output, suites, type)
+      event = RunTestSuitesEvent.new(self, suites, type)
       raise_event(:run_test_suites_start, event)
       filter = options[:filter] || '/./'
       filter = Regexp.new $1 if filter =~ /\/(.*)\//
 
-      self.class.progress_bar = ProgressBar.new(type.to_s.capitalize, suites.inject(0) { |i, suite| i += suite.send("#{type}_methods").grep(filter).size })
       results = suites.map { |suite| _run_suite suite, type }
       raise_event(:run_test_suites_finish, event.complete!)
       results
     end
 
     def _run_suite(suite, type)
-      suite_event = RunTestSuiteEvent.new(output, suite, type)
+      suite_event = RunTestSuiteEvent.new(self, suite, type)
       raise_event(:run_test_suite_start, suite_event)
-
-      header = "#{type}_suite_header"
-      puts send(header, suite) if respond_to? header
 
       filter = options[:filter] || '/./'
       filter = Regexp.new $1 if filter =~ /\/(.*)\//
@@ -193,16 +184,10 @@ module MiniTest
       assertions = methods.map { |method|
         inst = suite.new method
         inst._assertions = 0
-        run_event = RunTestEvent.new(output, inst)
+        run_event = RunTestEvent.new(self, inst)
         raise_event(:run_test_start, run_event)
 
-        start_time = Time.now
-        result = inst.run self
-        time = Time.now - start_time
-
-        print "#{suite}##{method} = %.2f s = " % time if @verbose
-        print result
-        puts if @verbose
+        run_event.result = inst.run self
         
         raise_event(:run_test_finish, run_event.complete!)
         inst._assertions
@@ -341,3 +326,4 @@ if $DEBUG then
 end
 
 MiniTest::Reporting.enable!
+MiniTest::Instafail.enable!

@@ -1,15 +1,15 @@
 module MiniTest
-  
-  class RunTestSuiteFinishHandler
+  class Reporting  
+    class RunTestSuiteFinishHandler
     
-    def initialize(event)
+      def initialize(event)
       
-    end
+      end
     
-    def call
+      def call
  
-    end
+      end
     
+    end
   end
-  
 end

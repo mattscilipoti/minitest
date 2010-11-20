@@ -4,12 +4,13 @@ module MiniTest
     
     class RunAnythingEvent < BaseEvent
       
-      attr_reader :output, :type
+      attr_reader :runner, :type, :output
       attr_accessor :test_count, :assertion_count, :report, :failures, :errors, :skips
       
-      def initialize(output, type)
+      def initialize(runner, type)
         super()
-        @output = output
+        @runner = runner
+        @output = runner.output
         @type = type
       end
       

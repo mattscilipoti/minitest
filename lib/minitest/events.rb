@@ -1,3 +1,4 @@
+Dir[Pathname(__FILE__).dirname + "events/**/*.rb"].each { |file| require file }
 module MiniTest
   
   module Events
@@ -48,7 +49,9 @@ module MiniTest
       end
       
       def unregister_event_handler(name, klass)
-        events.delete_if { |k,v| k == name.to_s && v == klass }
+        if handlers = events[name.to_s]
+          handlers.delete_if { |handler| handler == klass }
+        end
       end
 
     end

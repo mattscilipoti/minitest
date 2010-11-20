@@ -1,36 +1,20 @@
 module MiniTest
-  
-  class RunTestFinishHandler
-    
-    def initialize(event)
+  class Reporting  
+    class RunTestFinishHandler
       
-    end
-    
-    def call
-      case a
-      when ["."] then
-        # do nothing
-      when ["E"] then
-        current_state = "error"
-        @@state = :red
-      when ["F"] then
-        current_state = "fail"
-        @@state = :red
-      when ["S"] then
-        current_state = "skip"
-        @@state ||= :yellow
-      else
-        # nothing
+      def initialize(event)
+        @event = event
+        @runner = event.runner
+        @output = event.output
+        @suite_instance = event.suite_instance
       end
-      if report = @report.pop
-        @@report_count += 1
-        self.send("print_#{current_state}", report)
-      end
-      output.print COLORS[state]
-      progress_bar.inc
-      output.print COLORS[:white]
-    end
     
+      def call
+        @output.print "#{suite}##{method} = %.2f s = " % time if @runner.verbose
+        @output.print @event.result
+        @output.puts if @runner.verbose
+      end
+    
+    end
   end
-  
 end

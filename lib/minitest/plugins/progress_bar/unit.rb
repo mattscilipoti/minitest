@@ -4,7 +4,7 @@ module MiniTest
     
     COLORS = { :green =>  "\e[32m", :yellow => "\e[33m", :red => "\e[31m", :white => "\e[37m" }
     @@state = nil
-    
+    self.class.progress_bar = ProgressBar.new(type.to_s.capitalize, suites.inject(0) { |i, suite| i += suite.send("#{type}_methods").grep(filter).size })
     def state
       @@state || :green
     end

@@ -1,15 +1,15 @@
 module MiniTest
-  
-  class RunTestStartHandler
+  class Reporting  
+    class RunTestStartHandler
     
-    def initialize(event)
+      def initialize(event)
       
-    end
+      end
     
-    def call
+      def call
  
-    end
+      end
     
+    end
   end
-  
 end
