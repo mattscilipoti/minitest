@@ -1,7 +1,9 @@
 module MiniTest
   
   module ColorHelpers
-   
+    
+    COLORS = { :green =>  "\e[32m", :yellow => "\e[33m", :red => "\e[31m", :white => "\e[37m" }
+    
     def color(text, color_code)
       "#{color_code}#{text}\e[0m"
     end

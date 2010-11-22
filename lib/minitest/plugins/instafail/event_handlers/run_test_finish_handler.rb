@@ -14,8 +14,6 @@ module MiniTest
       def call
         if report = @runner.report.pop
           @runner.report_count += 1
-          @output.print "\e[K"
-          @output.puts
           case report[0,1]
           when 'E','F'
             handle_fail(report)
@@ -25,26 +23,34 @@ module MiniTest
             # wtf
           end
         else
-          @output.print "."
+          # @output.print "."
         end
       end
       
       private
       
       def handle_fail(report)
+        @output.print "\e[K"
+        @output.puts
         report_lines = report.split("\n")
         @output.puts red("\n%3d) %s" % [@runner.report_count, report_lines.shift + " " + report_lines.shift])
         report_lines.each do |line|
           @output.puts grey("#{PADDING}#{line}")
         end
+        @output.puts
+        @output.flush
       end
       
       def handle_skip(report)
+        @output.print "\e[K"
+        @output.puts
         report_lines = report.split("\n")
         @output.puts yellow("\n%3d) %s" % [@runner.report_count, report_lines.shift + " " + report_lines.shift])
         report_lines.each do |line|
           @output.puts grey("#{PADDING}#{line}")
         end
+        @output.puts
+        @output.flush
       end
     
     end

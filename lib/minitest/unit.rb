@@ -9,6 +9,7 @@ require 'progressbar'
 require 'minitest/plugin'
 require 'minitest/plugins/reporting/reporting'
 require 'minitest/plugins/instafail/instafail'
+require 'minitest/plugins/progress_bar/progress_bar'
 
 ##
 # Minimal (mostly drop-in) replacement for test-unit.
@@ -142,7 +143,7 @@ module MiniTest
     def _run_anything type
       suites = TestCase.send "#{type}_suites"
       return if suites.empty?
-      event = RunAnythingEvent.new(self, type)
+      event = RunAnythingEvent.new(self, type, suites, options)
       
       raise_event(:run_anything_start, event)
 
@@ -327,3 +328,4 @@ end
 
 MiniTest::Reporting.enable!
 MiniTest::Instafail.enable!
+MiniTest::ProgressBar.enable!

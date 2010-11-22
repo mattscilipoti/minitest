@@ -10,6 +10,7 @@ module MiniTest
     
     def self.disable!
       MiniTest::Unit.unregister_event_handler(:run_test_finish, MiniTest::Instafail::RunTestFinishHandler)
+      MiniTest::Unit.register_event_handler(:run_test_finish, MiniTest::Reporting::RunTestFinishHandler)
     end
     
   end

@@ -1,6 +1,6 @@
 module MiniTest
   
-  class Reporting
+  class ProgressBar
   
     class RunAnythingStartHandler
     
@@ -8,12 +8,14 @@ module MiniTest
         @event = event
         @output = event.output
         @type = event.type
+        @suites = event.suites
+        @options = event.options
       end
     
       def call
-        @output.puts
-        @output.puts "# Running #{@type}s:"
-        @output.puts
+        filter = @options[:filter] || '/./'
+        filter = Regexp.new $1 if filter =~ /\/(.*)\//
+        MiniTest::Unit.progress_bar = ::ProgressBar.new(@event.type.to_s.capitalize, @event.suites.inject(0) { |i, suite| i += suite.send("#{@event.type}_methods").grep(filter).size })
       end
     
     end

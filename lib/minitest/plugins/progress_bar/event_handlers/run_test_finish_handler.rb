@@ -1,36 +1,36 @@
 module MiniTest
-  
-  class RunTestFinishHandler
-    
-    def initialize(event)
+  class ProgressBar
+    class RunTestFinishHandler
+      include MiniTest::ColorHelpers
       
-    end
-    
-    def call
-      case a
-      when ["."] then
-        # do nothing
-      when ["E"] then
-        current_state = "error"
-        @@state = :red
-      when ["F"] then
-        current_state = "fail"
-        @@state = :red
-      when ["S"] then
-        current_state = "skip"
-        @@state ||= :yellow
-      else
-        # nothing
+      def initialize(event)
+        @event = event
+        @runner = event.runner
+        @output = event.output
+        @result = event.result
       end
-      if report = @report.pop
-        @@report_count += 1
-        self.send("print_#{current_state}", report)
-      end
-      output.print COLORS[state]
-      progress_bar.inc
-      output.print COLORS[:white]
-    end
     
+      def call
+        case @result
+        when "F", "E"
+          @runner.state = :red
+        when "S"
+          @runner.state = :yellow unless @runner.state == :red
+        end
+        
+        with_color do
+          @runner.progress_bar.inc
+        end
+      end
+    
+      private
+    
+      def with_color
+        @output.print COLORS[@runner.state]
+        yield
+        @output.print "\e[0m"
+      end
+    
+    end
   end
-  
 end
