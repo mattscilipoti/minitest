@@ -327,5 +327,5 @@ if $DEBUG then
 end
 
 MiniTest::Reporting.enable!
-MiniTest::Instafail.enable!
-MiniTest::ProgressBar.enable!
+# MiniTest::Instafail.enable!
+# MiniTest::ProgressBar.enable!
